@@ -238,10 +238,31 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 	  log('Humidité: '+retour[1] +'%');
 	  log('Luminosité: '+retour[2] +' lux');
 	  log('Conductivité: '+retour[3]+' µS/cm');
+	    
+		
+	
 	  
-	  var checkBox = document.getElementById("clear");
+	  // effacement historique
+	   var checkBox = document.getElementById("clear");
 	   if (checkBox.checked == true){
 			   log('Clearing histo values');
+			    // activation historique
+			  //log('Getting Historical Service...');
+			  service= await server.getPrimaryService(SERVICE_UUID_TIME);	
+
+			  //log('Getting Historical Characteristic...');
+			  characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_HISTO_ACTIVATE);
+			  
+			  //log('Ecriture');
+			  //0xa00000 (160,00,00)
+
+			  var CMD_HIST_TIME_READ_INIT = new ArrayBuffer(3);
+			  var view = new DataView(CMD_HIST_TIME_READ_INIT);
+			  
+			  view.setUint8(0,160);
+			  
+			  await characteristic.writeValue(CMD_HIST_TIME_READ_INIT); 
+			   
 			  // effacement histo
 			  //log('Getting Historical Service...');
 			  service= await server.getPrimaryService(SERVICE_UUID_TIME);	
@@ -253,14 +274,17 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 			  //0xa20000 (162,00,00)
 
 			  var CMD_HIST_TIME_CLEAR = new ArrayBuffer(3);
-			  var view = new DataView(CMD_HIST_TIME_CLEAR);
+			  var view2 = new DataView(CMD_HIST_TIME_CLEAR);
 			  
-			  view.setUint8(0,162);
+			  view2.setUint8(0,162);
+			  view2.setUint8(1,0);
+			  view2.setUint8(2,0);
 			  
 			  await characteristic.writeValue(CMD_HIST_TIME_CLEAR);
 	   }
 	  
-	  // lecture historique
+	  
+	  // activation historique
 	  //log('Getting Historical Service...');
       service= await server.getPrimaryService(SERVICE_UUID_TIME);	
 
@@ -275,7 +299,7 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 	  
 	  view.setUint8(0,160);
 	  
-	  await characteristic.writeValue(CMD_HIST_TIME_READ_INIT);
+	  await characteristic.writeValue(CMD_HIST_TIME_READ_INIT);	  
 	  
 	  //log('Reading histo');
 	  

@@ -91,7 +91,7 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 	    function readChar(array,start) {
 			var str='';
 			let lengthbuffer=array.byteLength;
-			for (let i=0 ; i<lengthbuffer;i++) {
+			for (let i=start ; i<lengthbuffer;i++) {
 				str+=String.fromCharCode(value.getUint8(i));
 			}
 			return str;
@@ -154,7 +154,7 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 	  server= await device.gatt.connect();
 	  
 	  // name 
-	  //log('Getting Name Service...');
+	  //log('Getting Name Service...');s
       service= await server.getPrimaryService(SERVICE_UUID_NAME);
 	  
 	  //log('Getting Name Characteristic...');

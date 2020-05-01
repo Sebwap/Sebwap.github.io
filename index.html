@@ -270,9 +270,21 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 			  //log('Getting Historical Characteristic...');
 			  characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_HISTO_ACTIVATE);
 			  
+
+	
+			// écriture fake 161 pour ensuite effacer ?
+			  var CMD_HIST_TIME_CLEAR = new ArrayBuffer(3);
+			  var view2 = new DataView(CMD_HIST_TIME_CLEAR);
+			  
+			  view2.setUint8(0,161);
+			  view2.setUint8(1,0);
+			  view2.setUint8(2,0);
+			  
+			  
+			  await characteristic.writeValue(CMD_HIST_TIME_CLEAR);
+
 			  //log('Ecriture');
 			  //0xa20000 (162,00,00)
-
 			  var CMD_HIST_TIME_CLEAR = new ArrayBuffer(3);
 			  var view2 = new DataView(CMD_HIST_TIME_CLEAR);
 			  

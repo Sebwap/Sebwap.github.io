@@ -243,10 +243,12 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 	
 	  
 	  // effacement historique
+	  // long car il faut lire au moins un enregistrement avant d'effacer
 	   var checkBox = document.getElementById("clear");
 	   if (checkBox.checked == true){
 			   log('Clearing histo values');
-			    // activation historique
+			  
+			  // activation historique
 			  //log('Getting Historical Service...');
 			  service= await server.getPrimaryService(SERVICE_UUID_TIME);	
 
@@ -255,20 +257,16 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 			  
 			  //log('Ecriture');
 			  //0xa00000 (160,00,00)
-
 			  var CMD_HIST_TIME_READ_INIT = new ArrayBuffer(3);
-			  var view = new DataView(CMD_HIST_TIME_READ_INIT);
-			  
-			  view.setUint8(0,160);
-			  
+			  var view = new DataView(CMD_HIST_TIME_READ_INIT);			  
+			  view.setUint8(0,160);			  
 			  await characteristic.writeValue(CMD_HIST_TIME_READ_INIT); 
 			   
 			  // effacement histo
 			  //log('Getting Historical Service...');
 			  service= await server.getPrimaryService(SERVICE_UUID_TIME);	
-
 	
-			// écriture fake 161 pour ensuite effacer ?
+			// écriture fake 161 (lecture du premier enregistrement) pour ensuite effacer
 			  var CMD_HIST_TIME_CLEAR = new ArrayBuffer(3);
 			  var view2 = new DataView(CMD_HIST_TIME_CLEAR);
 			  
@@ -288,7 +286,7 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 			  //log('Getting Historical Characteristic...');
 			  characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_HISTO_ACTIVATE);			   
 
-
+				// effacement à proprement parler
 			  //log('Ecriture');
 			  //0xa20000 (162,00,00)
 			  var CMD_HIST_TIME_CLEAR = new ArrayBuffer(3);

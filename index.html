@@ -1,0 +1,362 @@
+
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Xiaomi Flower Care reader</title>
+    <script>
+      // Add a global error event listener early on in the page load, to help ensure that browsers
+      // which don't support specific functionality still end up displaying a meaningful message.
+      window.addEventListener('error', function(error) {
+        if (ChromeSamples && ChromeSamples.setStatus) {
+          console.error(error);
+          ChromeSamples.setStatus(error.message + ' (Your browser may not support this feature.)');
+          error.preventDefault();
+        }
+      });
+    </script>   
+  </head>
+
+  <body>
+
+ <div id="adresse">
+C4:7C:8D:6B:04:52 #extérieur<br/>
+80:EA:CA:88:B6:C3 #intérieur
+</div>
+<button>Reading Xiaomi Flower Care values</button>
+  <input type="checkbox" id="clear" name="clear">
+  <label for="clear">Clear histo BEFORE reading</label>
+<script>
+  var ChromeSamples = {
+    log: function() {
+      var line = Array.prototype.slice.call(arguments).map(function(argument) {
+        return typeof argument === 'string' ? argument : JSON.stringify(argument);
+      }).join(' ');
+
+      document.querySelector('#log').textContent += line + '\n';
+    },
+
+    clearLog: function() {
+      document.querySelector('#log').textContent = '';
+    },
+
+    setStatus: function(status) {
+      document.querySelector('#status').textContent = status;
+    },
+
+    setContent: function(newContent) {
+      var content = document.querySelector('#content');
+      while(content.hasChildNodes()) {
+        content.removeChild(content.lastChild);
+      }
+      content.appendChild(newContent);
+    }
+  };
+</script>
+
+<h3>Live Output</h3>
+<div id="output" class="output">
+  <div id="content"></div>
+  <div id="status"></div>
+  <pre id="log"></pre>
+</div>
+
+ 
+   
+      <script>
+	  
+	  const SERVICE_UUID = '00001204-0000-1000-8000-00805f9b34fb';
+	  const SERVICE_UUID_TIME = '00001206-0000-1000-8000-00805f9b34fb';
+	  const SERVICE_UUID_NAME = 'generic_access';
+	  
+	  const CHARACTERISTIC_UUID_FIMRBATT = '00001a02-0000-1000-8000-00805f9b34fb';
+	  const CHARACTERISTIC_UUID_NAME ='00002a00-0000-1000-8000-00805f9b34fb';
+	  const CHARACTERISTIC_UUID_TIME = '00001a12-0000-1000-8000-00805f9b34fb';
+	  const CHARACTERISTIC_UUID_TEMPS_REEL_ACTIVATE='00001a00-0000-1000-8000-00805f9b34fb';
+	  const CHARACTERISTIC_UUID_TEMPS_REEL_DATA='00001a01-0000-1000-8000-00805f9b34fb';
+	  
+	  const CHARACTERISTIC_UUID_HISTO_ACTIVATE= '00001a10-0000-1000-8000-00805f9b34fb';
+	  const CHARACTERISTIC_UUID_HISTO_DATA_READ='00001a11-0000-1000-8000-00805f9b34fb';
+
+		function readInt(array) {
+			var value = 0;
+			size=array.byteLength;
+			for (var i = size-1; i >=0; i--) {
+				value = (value * 256) + array.getUint8(i);
+			}
+			return value;
+		}
+
+	    function readChar(array,start) {
+			var str='';
+			let lengthbuffer=array.byteLength;
+			for (let i=0 ; i<lengthbuffer;i++) {
+				str+=String.fromCharCode(value.getUint8(i));
+			}
+			return str;
+		}
+		
+		function parse(array) {
+			var retour=new Array(4);
+			/* 1- température*/
+			var temp=(array.getUint8(1)*256+array.getUint8(0))/10;
+			retour[0]=temp;
+			/* 2- humidité */
+			var humidite=array.getUint8(7);
+			retour[1]=humidite;
+			/* 3- luminosité */
+			var luminosite=(array.getUint8(6)*256*256*256+array.getUint8(5)*256*256+array.getUint8(4)*256+array.getUint8(3));
+			retour[2]=luminosite;
+			/* 4- conductivity */
+			var conductivity=(array.getUint8(9)*256+array.getUint8(8));
+			retour[3]=conductivity;
+			return retour;
+		}
+		
+		function parse_histo(array) {
+			var retour=new Array(5);
+			/* 1- température*/
+			var temp=(array.getUint8(5)*256+array.getUint8(4))/10;
+			retour[0]=temp;
+			/* 2- humidité */
+			var humidite=array.getUint8(11);
+			retour[1]=humidite;
+			/* 3- luminosité */
+			var luminosite=array.getUint8(9)*256*256+array.getUint8(8)*256+array.getUint8(7);
+			retour[2]=luminosite;
+			/* 4- conductivity */
+			var conductivity=(array.getUint8(13)*256+array.getUint8(12));
+			retour[3]=conductivity;
+			/* 5 - Time */
+			var time=(array.getUint8(3)*256*256*256+array.getUint8(2)*256*256+array.getUint8(1)*256+array.getUint8(0));
+			retour[4]=time;
+			
+			return retour;			
+		}	
+
+		function dte_format(dte) {
+			var str='';
+			str=dte.getFullYear()+'/'+("00" + (dte.getMonth() + 1)).slice(-2)+'/'+("00" + dte.getDate()).slice(-2);
+			str=str+' '+("00" + dte.getHours()).slice(-2) + ":" +  ("00" + dte.getMinutes()).slice(-2) + ":" +  ("00" + dte.getSeconds()).slice(-2);
+			
+			return str;
+			
+		}
+
+	  async function onButtonClick() {
+	  log('Start !');
+	  
+	  // connexion au thermomètre
+	  //log('Requesting Bluetooth Device...');
+	  device= await navigator.bluetooth.requestDevice({filters: [{namePrefix: 'Flower care'}],optionalServices: [SERVICE_UUID,SERVICE_UUID_TIME,SERVICE_UUID_NAME]});
+	  //log('Connecting to GATT Server...');
+	  server= await device.gatt.connect();
+	  
+	  // name 
+	  //log('Getting Name Service...');
+      service= await server.getPrimaryService(SERVICE_UUID_NAME);
+	  
+	  //log('Getting Name Characteristic...');
+      characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_NAME);
+	  
+	  //log('Reading Name value...');
+      value= await characteristic.readValue(); 
+	  //('Decode name');
+	  
+	  let name=readChar(value,0);
+	  log('> Name is '+name);
+	  
+	    
+	  // firmware & battery
+	  //log('Getting Firm & batt Service...');
+      service= await server.getPrimaryService(SERVICE_UUID);	  	  
+	  
+	  //log('Getting Battery Level and Firmware Characteristic...');
+      characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_FIMRBATT);
+	  
+	  //log('Reading Battery Level and firmware...');
+      value= await characteristic.readValue(); 
+	  
+	  let batteryLevel = value.getUint8(0);
+      log('> Battery Level is ' + batteryLevel + '%');
+	  let firmware=readChar(value,1);	  
+	  log('> Firmware version is '+firmware);
+	  
+	  
+	  
+	  // timestamp
+	  //log('Getting Time Service...');
+      service= await server.getPrimaryService(SERVICE_UUID_TIME);
+	  
+	  //log('Getting Time Characteristic...');
+	  characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_TIME);
+	  //log('Reading Time value...');
+	  time1=new Date();
+	  //log('Heure actuelle: '+time1.getTime());
+      value= await characteristic.readValue();
+	  time2=new Date();
+	  //log('Heure actuelle: '+time2.getTime());
+	  second=readInt(value);
+	  log('Seconds since boot: '+second);
+	  time1.setTime((time1.getTime()+time2.getTime())/2);
+	  log('Heure moyenne: '+time1.getTime() + ' ' + dte_format(time1));
+	  epoch_time = time1.getTime()/1000 - second;
+	  log('epoch: '+epoch_time);
+	  
+	  
+	  // activation temps réel
+	  //log('Getting Realtime Service...');
+      service= await server.getPrimaryService(SERVICE_UUID);
+	  
+	  //log('Getting Realtime Characteristic...');
+	  characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_TEMPS_REEL_ACTIVATE);
+	  
+	  //log('Ecriture');
+	  //0xa01f (160,31)
+
+	  var CMD_REAL_TIME_READ_INIT = new ArrayBuffer(2);
+	  var view = new DataView(CMD_REAL_TIME_READ_INIT);
+	  
+	  
+	  view.setUint8(0,160);
+	  view.setUint8(1,31);
+	  
+	  await characteristic.writeValue(CMD_REAL_TIME_READ_INIT);
+	  
+	  //log('Reading realtime');
+	  
+	  //log('Getting Realtime Characteristic...');
+	  characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_TEMPS_REEL_DATA);
+	  
+	  //log('Reading Realtime...');
+      value= await characteristic.readValue(); 
+	  
+	  //log('Parsing Realtime value...');
+	  retour=parse(value);	 
+	  log('Température: '+retour[0] +'°C');
+	  log('Humidité: '+retour[1] +'%');
+	  log('Luminosité: '+retour[2] +' lux');
+	  log('Conductivité: '+retour[3]+' µS/cm');
+	  
+	  var checkBox = document.getElementById("clear");
+	   if (checkBox.checked == true){
+			   log('Clearing histo values');
+			  // effacement histo
+			  //log('Getting Historical Service...');
+			  service= await server.getPrimaryService(SERVICE_UUID_TIME);	
+
+			  //log('Getting Historical Characteristic...');
+			  characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_HISTO_ACTIVATE);
+			  
+			  //log('Ecriture');
+			  //0xa20000 (162,00,00)
+
+			  var CMD_HIST_TIME_CLEAR = new ArrayBuffer(3);
+			  var view = new DataView(CMD_HIST_TIME_CLEAR);
+			  
+			  view.setUint8(0,162);
+			  
+			  await characteristic.writeValue(CMD_HIST_TIME_CLEAR);
+	   }
+	  
+	  // lecture historique
+	  //log('Getting Historical Service...');
+      service= await server.getPrimaryService(SERVICE_UUID_TIME);	
+
+	  //log('Getting Historical Characteristic...');
+	  characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_HISTO_ACTIVATE);
+	  
+	  //log('Ecriture');
+	  //0xa00000 (160,00,00)
+
+	  var CMD_HIST_TIME_READ_INIT = new ArrayBuffer(3);
+	  var view = new DataView(CMD_HIST_TIME_READ_INIT);
+	  
+	  view.setUint8(0,160);
+	  
+	  await characteristic.writeValue(CMD_HIST_TIME_READ_INIT);
+	  
+	  //log('Reading histo');
+	  
+	  //log('Getting Histo Characteristic...');
+	  characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_HISTO_DATA_READ);
+	  
+	  //log('Reading Histo...');
+      value= await characteristic.readValue(); 
+	  
+	  var nb_histo=(value.getUint8(1)*256+value.getUint8(0));
+	  log('Histo value: '+nb_histo + ' value(s)');
+	  
+	  // parcours de l'histo
+	  if (nb_histo!=0) {
+			for(var i=0;i<nb_histo;i++) {
+				//calcul adresse
+				//addr=b'\xa1' + i.to_bytes(2, _BYTE_ORDER)
+				var addr = new ArrayBuffer(3);
+				var view = new DataView(addr);
+				view.setUint8(0,161);
+				//log(i+' '+ i%256 + ' '+ Math.trunc(i/256));
+				view.setUint8(1,i%256);
+				view.setUint8(2,Math.trunc(i/256));
+				
+				// écriture
+				//log('Getting Historical Characteristic...');
+				characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_HISTO_ACTIVATE);
+				
+				//log('Ecriture');
+				await characteristic.writeValue(addr);
+				
+				//lecture
+				//log('Getting Histo Characteristic...');
+				characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_HISTO_DATA_READ);
+				  
+				//log('Reading Histo...');
+				value= await characteristic.readValue(); 
+				
+				//parse
+				//log('Parsing Realtime value...');
+				retour=parse_histo(value);	 
+				
+				//display
+				tps = new Date();
+				tps.setTime((epoch_time+retour[4])*1000);
+				log(i+':'+dte_format(tps)+';Température: '+retour[0] +'°C;Humidité: '+retour[1] +'%;Luminosité: '+retour[2] +' lux;Conductivité: '+retour[3]+' µS/cm');
+				
+			}
+	  }
+	  
+	  
+	  log('Disconnect device');
+	  await device.gatt.disconnect();
+	  
+	  log('end');
+}
+</script>
+    
+ <script>
+  document.querySelector('button').addEventListener('click', function() {
+    if (isWebBluetoothEnabled()) {
+      ChromeSamples.clearLog();
+      onButtonClick();
+    }
+  });
+</script>
+
+<script>
+  log = ChromeSamples.log;
+
+  function isWebBluetoothEnabled() {
+    if (navigator.bluetooth) {
+      return true;
+    } else {
+      ChromeSamples.setStatus('Web Bluetooth API is not available.\n' +
+          'Please make sure the "Experimental Web Platform features" flag is enabled.');
+      return false;
+    }
+  }
+</script>
+
+
+  </body>
+</html>

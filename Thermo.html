@@ -1,0 +1,165 @@
+
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Xiaomi Bluetooth LYWSD03MMC reader</title>
+    <script>
+      // Add a global error event listener early on in the page load, to help ensure that browsers
+      // which don't support specific functionality still end up displaying a meaningful message.
+      window.addEventListener('error', function(error) {
+        if (ChromeSamples && ChromeSamples.setStatus) {
+          console.error(error);
+          ChromeSamples.setStatus(error.message + ' (Your browser may not support this feature.)');
+          error.preventDefault();
+        }
+      });
+    </script>   
+  </head>
+
+  <body>
+
+<button>Reading Xiaomi LYWSD03MMC values</button>
+<script>
+  var ChromeSamples = {
+    log: function() {
+      var line = Array.prototype.slice.call(arguments).map(function(argument) {
+        return typeof argument === 'string' ? argument : JSON.stringify(argument);
+      }).join(' ');
+
+      document.querySelector('#log').textContent += line + '\n';
+    },
+
+    clearLog: function() {
+      document.querySelector('#log').textContent = '';
+    },
+
+    setStatus: function(status) {
+      document.querySelector('#status').textContent = status;
+    },
+
+    setContent: function(newContent) {
+      var content = document.querySelector('#content');
+      while(content.hasChildNodes()) {
+        content.removeChild(content.lastChild);
+      }
+      content.appendChild(newContent);
+    }
+  };
+</script>
+
+<h3>Live Output</h3>
+<div id="output" class="output">
+  <div id="content"></div>
+  <div id="status"></div>
+  <pre id="log"></pre>
+</div>
+
+ 
+   
+      <script>
+	  
+	  const BATT_SERVICE_UUID = 'battery_service';	  
+	  const CHARACTERISTIC_UUID_BATT = '00002a19-0000-1000-8000-00805f9b34fb';
+	  
+	  const SERVICE_UUID       ='ebe0ccb0-7a0a-4b0c-8a1a-6ff2997da3a6';
+	  const CHARACTERISTIC_UUID='ebe0ccc1-7a0a-4b0c-8a1a-6ff2997da3a6';
+	  
+	  
+		function readInt(array) {
+			var value = 0;
+			size=array.byteLength;
+			for (var i = size-1; i >=0; i--) {
+				value = (value * 256) + array.getUint8(i);
+			}
+			return value;
+		}
+
+	    function readChar(array,start) {
+			var str='';
+			let lengthbuffer=array.byteLength;
+			for (let i=start ; i<lengthbuffer;i++) {
+				str+=String.fromCharCode(value.getUint8(i));
+			}
+			return str;
+		}
+		
+		function handleCharacteristicValueChanged(event) {
+		  var value = event.target.value;
+		  log('Temperature: ' + (value.getUint8(1)*256+value.getUint8(0))/100+'°C');
+		  log('Humidity: ' + value.getUint8(2)+'%');
+		}
+
+
+	  async function onButtonClick() {
+	  log('Start !');
+	  
+	  // connexion au thermomètre
+	  //log('Requesting Bluetooth Device...');
+	  device= await navigator.bluetooth.requestDevice({filters: [{namePrefix: 'LYWSD03MMC'}],optionalServices: [BATT_SERVICE_UUID,SERVICE_UUID]});
+	  //log('Connecting to GATT Server...');
+	  server= await device.gatt.connect();
+
+	  log('> Name is '+device.name);
+	  
+	    
+	  // battery
+	  //log('Getting batt Service...');
+      service= await server.getPrimaryService(BATT_SERVICE_UUID);	  	  
+	  
+	  //log('Getting Battery Level Characteristic...');
+      characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_BATT);
+	  
+	  //log('Reading Battery Level and firmware...');
+      value= await characteristic.readValue(); 
+	  
+	  let batteryLevel = value.getUint8(0);
+      log('> Battery Level is ' + batteryLevel + '%');
+	  
+	  // inscription à la notification
+	  log('service');
+	  service= await server.getPrimaryService(SERVICE_UUID);	 
+	  
+	  log('characteristic');
+	  characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID);
+	  
+	  log('notif');
+	  await characteristic.startNotifications();
+	  await characteristic.addEventListener('characteristicvaluechanged',handleCharacteristicValueChanged);
+	  
+	  await new Promise(r => setTimeout(r, 20000));
+	  
+	  log('Disconnect device');
+	  await device.gatt.disconnect();
+	  
+	  log('end');
+}
+</script>
+    
+ <script>
+  document.querySelector('button').addEventListener('click', function() {
+    if (isWebBluetoothEnabled()) {
+      ChromeSamples.clearLog();
+      onButtonClick();
+    }
+  });
+</script>
+
+<script>
+  log = ChromeSamples.log;
+
+  function isWebBluetoothEnabled() {
+    if (navigator.bluetooth) {
+      return true;
+    } else {
+      ChromeSamples.setStatus('Web Bluetooth API is not available.\n' +
+          'Please make sure the "Experimental Web Platform features" flag is enabled.');
+      return false;
+    }
+  }
+</script>
+
+
+  </body>
+</html>

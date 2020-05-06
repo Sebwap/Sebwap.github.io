@@ -66,6 +66,7 @@
 	  const SERVICE_UUID       ='ebe0ccb0-7a0a-4b0c-8a1a-6ff2997da3a6';
 	  const CHARACTERISTIC_UUID='ebe0ccc1-7a0a-4b0c-8a1a-6ff2997da3a6';
 	  
+	  var device;
 	  
 		function readInt(array) {
 			var value = 0;
@@ -85,10 +86,16 @@
 			return str;
 		}
 		
-		function handleCharacteristicValueChanged(event) {
+		async function handleCharacteristicValueChanged(event) {
 		  var value = event.target.value;
 		  log('Temperature: ' + (value.getUint8(1)*256+value.getUint8(0))/100+'°C');
 		  log('Humidity: ' + value.getUint8(2)+'%');
+		  
+		  // déconnexion
+		  log('Disconnect device');
+		  await device.gatt.disconnect();
+	  
+		  log('end');
 		}
 
 
@@ -130,10 +137,6 @@
 	  
 	  await new Promise(r => setTimeout(r, 20000));
 	  
-	  log('Disconnect device');
-	  await device.gatt.disconnect();
-	  
-	  log('end');
 }
 </script>
     

@@ -1,0 +1,192 @@
+
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Giiker reader</title>
+    <script>
+      // Add a global error event listener early on in the page load, to help ensure that browsers
+      // which don't support specific functionality still end up displaying a meaningful message.
+      window.addEventListener('error', function(error) {
+        if (ChromeSamples && ChromeSamples.setStatus) {
+          console.error(error);
+          ChromeSamples.setStatus(error.message + ' (Your browser may not support this feature.)');
+          error.preventDefault();
+        }
+      });
+    </script>   
+  </head>
+
+  <body>
+
+<button>Reading Giiker values</button>
+<script>
+  var ChromeSamples = {
+    log: function() {
+      var line = Array.prototype.slice.call(arguments).map(function(argument) {
+        return typeof argument === 'string' ? argument : JSON.stringify(argument);
+      }).join(' ');
+
+      document.querySelector('#log').textContent += line + '\n';
+    },
+
+    clearLog: function() {
+      document.querySelector('#log').textContent = '';
+    },
+
+    setStatus: function(status) {
+      document.querySelector('#status').textContent = status;
+    },
+
+    setContent: function(newContent) {
+      var content = document.querySelector('#content');
+      while(content.hasChildNodes()) {
+        content.removeChild(content.lastChild);
+      }
+      content.appendChild(newContent);
+    }
+  };
+</script>
+
+<h3>Live Output</h3>
+<div id="output" class="output">
+  <div id="content"></div>
+  <div id="status"></div>
+  <pre id="log"></pre>
+</div>
+
+ 
+   
+      <script>
+	  
+	  const CUBE_SERVICE = '0000aadb-0000-1000-8000-00805f9b34fb';	  
+	  const CUBE_CHARACTERISTIC = '0000aadc-0000-1000-8000-00805f9b34fb';
+	  
+	  
+	  const CONFIG_SERVICE       ='0000aaaa-0000-1000-8000-00805f9b34fb';
+	  const CONFIG_CHARACTERISTIC='0000aaac-0000-1000-8000-00805f9b34fb';
+	  const INFO_CHARACTERISTIC='0000aaab-0000-1000-8000-00805f9b34fb';
+	  
+	  var device;
+	  
+		function readInt(array) {
+			size=array.byteLength;
+			value='';
+			for (var i=0;i < size; i++) {
+				value = value+'-'+array.getUint8(i);
+			}
+			log('State: '+value);
+		}
+
+	    function readChar(array,start) {
+			var str='';
+			let lengthbuffer=array.byteLength;
+			for (let i=start ; i<lengthbuffer;i++) {
+				str+=String.fromCharCode(value.getUint8(i));
+			}
+			return str;
+		}
+		
+		async function handleCharacteristicValueChanged(event) {
+		  var value = event.target.value;
+		  
+		  if(value.getUint8(0)==181) {
+		  log('Battery: ' + value.getUint8(1)+'%');
+		  }
+		  if(value.getUint8(0)==204) {
+		  log('Move count: ' + (value.getUint8(1)*Math.pow(256,3)+value.getUint8(2)*Math.pow(256,2)+value.getUint8(3)*256+value.getUint8(4))+' moves');
+		  }
+		}
+
+
+	  async function onButtonClick() {
+	  log('Start !');
+	  
+	  // connexion au thermomètre
+	  //log('Requesting Bluetooth Device...');
+	  device= await navigator.bluetooth.requestDevice({filters: [{namePrefix: 'Gi'}],optionalServices: [CUBE_SERVICE,CONFIG_SERVICE]});
+	  //log('Connecting to GATT Server...');
+	  server= await device.gatt.connect();
+
+	  log('> Name is '+device.name);
+	  
+	  // cube state
+	  service= await server.getPrimaryService(CUBE_SERVICE);	 
+	  
+	  log('characteristic state');
+	  characteristic= await service.getCharacteristic(CUBE_CHARACTERISTIC);
+	  value= await characteristic.readValue();
+	  
+	  // affichage de la valeur en hexa
+	  readInt(value);
+
+	  // inscription à la notification
+	  log('service');
+	  service= await server.getPrimaryService(CONFIG_SERVICE);	 
+	  
+	  log('characteristic');
+	  characteristic= await service.getCharacteristic(INFO_CHARACTERISTIC);
+	  
+	  log('notif');
+	  await characteristic.startNotifications();
+	  await characteristic.addEventListener('characteristicvaluechanged',handleCharacteristicValueChanged);
+	  
+	  log('ecriture pour batterie');
+	  characteristic2= await service.getCharacteristic(CONFIG_CHARACTERISTIC);
+	  
+	  var CMD_BATT = new ArrayBuffer(1);
+	  var view = new DataView(CMD_BATT);
+	  //For battery level write "0xB5" to AAAC
+	  view.setUint8(0,181);
+	  
+	  await characteristic2.writeValue(CMD_BATT);
+
+	  await new Promise(r => setTimeout(r, 2000));
+	  
+	  // écriture pour le nombre de mouvement
+	  log('ecriture pour mouvements');
+	  var CMD_MOVE = new ArrayBuffer(1);
+	  var view = new DataView(CMD_MOVE);
+	  //For move count write "0xCC" to AAAC
+	  view.setUint8(0,204);
+	  
+	  await characteristic2.writeValue(CMD_MOVE);
+	  
+	  await new Promise(r => setTimeout(r, 2000));	  
+	  
+	  // déconnexion
+	  log('Disconnect device');
+	  await device.gatt.disconnect();
+  
+	  log('end');	  
+	  
+}
+</script>
+    
+ <script>
+  document.querySelector('button').addEventListener('click', function() {
+    if (isWebBluetoothEnabled()) {
+      ChromeSamples.clearLog();
+      onButtonClick();
+    }
+  });
+</script>
+
+<script>
+  log = ChromeSamples.log;
+
+  function isWebBluetoothEnabled() {
+    if (navigator.bluetooth) {
+      return true;
+    } else {
+      ChromeSamples.setStatus('Web Bluetooth API is not available.\n' +
+          'Please make sure the "Experimental Web Platform features" flag is enabled.');
+      return false;
+    }
+  }
+</script>
+
+
+  </body>
+</html>

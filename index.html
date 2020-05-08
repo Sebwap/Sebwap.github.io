@@ -331,6 +331,10 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 	  // parcours de l'histo
 	  if (nb_histo!=0) {
 			for(var i=0;i<nb_histo;i++) {
+				
+				
+				try {
+				
 				//calcul adresse
 				//addr=b'\xa1' + i.to_bytes(2, _BYTE_ORDER)
 				var addr = new ArrayBuffer(3);
@@ -363,6 +367,20 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 				tps.setTime((epoch_time+retour[4])*1000);
 				log(i+':'+dte_format(tps)+';Température: '+retour[0] +'°C;Humidité: '+retour[1] +'%;Luminosité: '+retour[2] +' lux;Conductivité: '+retour[3]+' µS/cm');
 				
+				}
+				catch(e) {
+					log('erreur:'+e);
+					// reco
+					server=await device.gatt.connect();
+					service= await server.getPrimaryService(SERVICE_UUID_TIME);
+					characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_HISTO_ACTIVATE);
+					var CMD_HIST_TIME_READ_INIT = new ArrayBuffer(3);
+					var view = new DataView(CMD_HIST_TIME_READ_INIT);
+					view.setUint8(0,160);
+					await characteristic.writeValue(CMD_HIST_TIME_READ_INIT);	  
+					i--; // pour repartir sur la même ligne
+				}
+
 			}
 	  }
 	  

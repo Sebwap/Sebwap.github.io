@@ -175,7 +175,7 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 		  interpolateNulls: true,
 		  curveType: 'function',
 		  hAxis: {
-            format: 'dd/MM/yyyy'
+            format: 'dd/MM/yyyy HH:mm'
 		  },
 		  vAxis: {
 			format: "#.#'%'"
@@ -217,7 +217,7 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 		  interpolateNulls: true,
 		  curveType: 'function',
 		  hAxis: {
-            format: 'dd/MM/yyyy'
+            format: 'dd/MM/yyyy HH:mm'
 		  },
 		  vAxis: {
 			format: '# ### lux',
@@ -308,11 +308,30 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 	  async function onButtonClick() {
 	  log('Start !');
 	  
+	  async function onDisconnected() {
+		log('Déco auto');
+		// reco
+		await new Promise(r => setTimeout(r, 2000));
+		server=await device.gatt.connect();						
+		log('reco ok');
+		service= await server.getPrimaryService(SERVICE_UUID_TIME);
+		log('service ok');
+		characteristic= await service.getCharacteristic(CHARACTERISTIC_UUID_HISTO_ACTIVATE);
+		var CMD_HIST_TIME_READ_INIT = new ArrayBuffer(3);
+		var view = new DataView(CMD_HIST_TIME_READ_INIT);
+		view.setUint8(0,160);
+		await characteristic.writeValue(CMD_HIST_TIME_READ_INIT);	
+		log('write ok')	;
+		log('Fin auto reconnect');
+	  }
+	  
 	  // connexion au thermomètre
 	  //log('Requesting Bluetooth Device...');
 	  device= await navigator.bluetooth.requestDevice({filters: [{namePrefix: 'Flower care'}],optionalServices: [SERVICE_UUID,SERVICE_UUID_TIME,SERVICE_UUID_NAME]});
 	  //log('Connecting to GATT Server...');
 	  server= await device.gatt.connect();
+	  
+	  //device.addEventListener('gattserverdisconnected', onDisconnected);
 	  
 	  // name 
 	  //log('Getting Name Service...');s
@@ -529,7 +548,7 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 				//display
 				tps = new Date();
 				tps.setTime((epoch_time+retour[4])*1000);
-				log(i+':'+dte_format(tps)+';Température: '+retour[0] +'°C;Humidité: '+retour[1] +'%;Luminosité: '+retour[2] +' lux;Conductivité: '+retour[3]+' µS/cm');
+				//log(i+':'+dte_format(tps)+';Température: '+retour[0] +'°C;Humidité: '+retour[1] +'%;Luminosité: '+retour[2] +' lux;Conductivité: '+retour[3]+' µS/cm');
 				
 				donnee_date[i]=tps;
 				donnee_temp[i]=retour[0];
@@ -537,14 +556,19 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 				donnee_lum[i]=retour[2];
 				donnee_fer[i]=retour[3];
 				
+				// temporisation régulière ?
+				/*if(i%30==0 &&i!=0) {
+					log('Tempo régulière');
+					await new Promise(r => setTimeout(r, 1000));
+				}*/
+				
 				}
 				catch(e) {
 					log(i+'-erreur:'+e);
-					// tempo
-					await new Promise(r => setTimeout(r, 2000));
-					log('fin tempo');
+					log('Retriving connection');
 					// reco
-					server=await device.gatt.connect();
+					await new Promise(r => setTimeout(r, 2000));
+					server=await device.gatt.connect();							
 					log('reco ok');
 					service= await server.getPrimaryService(SERVICE_UUID_TIME);
 					log('service ok');
@@ -553,13 +577,12 @@ C4:7C:8D:6B:04:52 #extérieur<br/>
 					var view = new DataView(CMD_HIST_TIME_READ_INIT);
 					view.setUint8(0,160);
 					await characteristic.writeValue(CMD_HIST_TIME_READ_INIT);	
-					log('write ok')					;
+					log('write ok');
 					i--; // pour repartir sur la même ligne
 				}
 
 			}
 	  }
-	  
 	  
 	  log('Disconnect device');
 	  await device.gatt.disconnect();
